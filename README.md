@@ -6,7 +6,7 @@
 
 ## Install Karo (Termux)
 
-pkg update -y && pkg install python git -y && termux-setup-storage && git clone https://github.com/TUMHARA_USERNAME/DevScanner && cd DevScanner && python DevScanner.py
+pkg update -y && pkg install python git -y && termux-setup-storage && git clone https://github.com/Dev0003feb/DevScanner && cd DevScanner && python DevScanner.py
 
 ## Features
 - SNI Scanner (Bina Net ✔)

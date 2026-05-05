@@ -9,28 +9,29 @@ import ipaddress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-# ── ANSI ────────────────────────────────────────────────────────
-R   = "\033[91m"
-G   = "\033[92m"
-Y   = "\033[93m"
-B   = "\033[94m"
-M   = "\033[95m"
-C   = "\033[96m"
-W   = "\033[97m"
-O   = "\033[38;5;214m"
-LB  = "\033[38;5;117m"
-PU  = "\033[38;5;135m"
-CY2 = "\033[38;5;51m"
-GR2 = "\033[38;5;46m"
-DIM = "\033[2m"
-BLD = "\033[1m"
-RST = "\033[0m"
-CL  = "\033[2K"
-CR  = "\r"
+# ── ANSI COLORS (Premium Hacker Theme) ──────────────────────────
+R   = "\033[38;5;196m"    # Crimson Red (Bright)
+G   = "\033[38;5;46m"     # Neon Green
+Y   = "\033[38;5;226m"    # Vibrant Yellow
+B   = "\033[38;5;33m"     # Electric Blue
+M   = "\033[38;5;38m"     # Deep Sky Blue (Purple replaced)
+C   = "\033[38;5;51m"     # Bright Aqua/Cyan
+W   = "\033[38;5;255m"    # Pure White
+O   = "\033[38;5;208m"    # Neon Orange
+LB  = "\033[38;5;117m"    # Light Sky Blue
+PU  = "\033[38;5;82m"     # Toxic/Mint Green (Purple replaced)
+CY2 = "\033[38;5;87m"     # Light Cyan
+GR2 = "\033[38;5;118m"    # Chartreuse (Yellow-Green)
+DIM = "\033[2m"           # Dim text
+BLD = "\033[1m"           # Bold text
+RST = "\033[0m"           # Reset all formatting
+CL  = "\033[2K"           # Clear Line
+CR  = "\r"                # Carriage Return
+
 
 # ── GitHub raw URL for update ────────────────────────────────────
 TOOL_URL = "https://raw.githubusercontent.com/Dev0003feb/DevScanner/main/DevScanner.py"
-TOOL_VER = "v3.1"
+TOOL_VER = "v4.0"
 
 # ================================================================
 #  DEVICE DETECTION
@@ -66,14 +67,20 @@ def clr():
     os.system("clear")
 
 def is_online():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(2)
-        s.connect(("8.8.8.8", 53))
-        s.close()
-        return True
-    except:
-        return False
+    targets = [
+        ("8.8.8.8",53),("1.1.1.1",53),("8.8.4.4",53),
+        ("8.8.8.8",80),("1.1.1.1",80),("208.67.222.222",53),
+    ]
+    for host, port in targets:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2)
+            s.connect((host, port))
+            s.close()
+            return True
+        except:
+            continue
+    return False
 
 def safe_path(p):
     return os.path.expanduser(p.strip().strip("'\""))
@@ -262,45 +269,49 @@ def pause():
 def sep(c=DIM, n=50):
     print(f"  {c}{'─'*n}{RST}")
 
-# ── Fixed-width box line printer ─────────────────────────────────
-def _strip_ansi(s):
-    return re.sub(r'\033\[[0-9;]*m', '', s)
-
-def _box_row(content_ansi, inner_w, bc=M):
-    """Print one row inside a box with correct padding"""
-    vis = len(_strip_ansi(content_ansi))
-    pad = max(0, inner_w - vis)
-    sys.stdout.write(f"  {bc}║{RST}{content_ansi}{' '*pad}{bc}║{RST}\n")
-
-def draw_box(rows, width=46, color=M):
-    """
-    rows = list of (content_ansi_str, is_divider)
-    Draws a neat fixed-width box.
-    """
-    iw = width  # inner width (between ║ ║)
-    line = '═' * iw
-    print(f"  {color}╔{line}╗{RST}")
-    for i, row in enumerate(rows):
-        if row == "div":
-            print(f"  {color}╠{line}╣{RST}")
+# ── Box Drawing (phone-safe, ANSI-aware) ────────────────────────
+def _vis(s):
+    plain = re.sub(r"\033\[[0-9;]*[mGKHFJ]", "", s)
+    w = 0
+    for ch in plain:
+        cp = ord(ch)
+        if (0x1F000 <= cp <= 0x1FFFF or 0x2600 <= cp <= 0x27BF
+                or 0x2E80 <= cp <= 0x9FFF):
+            w += 2
         else:
-            _box_row(row, iw, color)
-    print(f"  {color}╚{line}╝{RST}")
+            w += 1
+    return w
+
+BW = 36
+
+def _brow(text, bc=M):
+    pad = max(0, BW - _vis(text))
+    sp  = " " * pad
+    sys.stdout.write(f"  {bc}║{RST}{text}{sp}{bc}║{RST}\n")
+
+def _btop(bc=M): print(f"  {bc}╔{chr(9552)*BW}╗{RST}")
+def _bmid(bc=M): print(f"  {bc}╠{chr(9552)*BW}╣{RST}")
+def _bbot(bc=M): print(f"  {bc}╚{chr(9552)*BW}╝{RST}")
+
+def draw_box(rows, width=None, color=M):
+    _btop(color)
+    for r in rows:
+        if r == "div": _bmid(color)
+        else: _brow(r, color)
+    _bbot(color)
 
 def feature_header(icon, name, sub="", others=""):
-    W2 = 46
-    title = f"  {BLD}{C}{icon}  {W}{name}{RST}"
-    rows  = [title]
-    if sub:
-        rows.append(f"  {DIM}{sub}{RST}")
-    if others:
-        rows.append("div")
-        rows.append(f"  {DIM}{others}{RST}")
     print()
-    draw_box(rows, W2, M)
+    _btop(M)
+    _brow(f" {BLD}{C}{icon}{RST}  {BLD}{W}{name}{RST}", M)
+    if sub: _brow(f"  {DIM}{sub}{RST}", M)
+    if others:
+        _bmid(M)
+        _brow(f"  {DIM}{others}{RST}", M)
+    _bbot(M)
     print()
 
-OTHER_FEATURES = "Domain·Port·HTTP·SNI·Subdomain·Extract·JSON·IP·Net·Info"
+OTHER_FEATURES = "Domain·Port·HTTP·SNI·Sub·Extract·JSON·IP·Net·Update"
 
 # ================================================================
 #  PROGRESS BAR  ── Single line, never scrolls
@@ -474,34 +485,112 @@ def select_threads():
     return d
 
 # ================================================================
-#  BANNER
+#  ASCII ART  — Clean & Compact Slant Font (Forced Same Line)
+# ================================================================
+DEV_ART = [
+    r"  _______________________",
+    r"   / __ \  / ____/| |  / /",
+    r"  / / / / / __/   | | / / ",
+    r" / /_/ / / /___   | |/ /  ",
+    r"/_____/ /_____/   |___/   "
+]
+DEV_COLORS = [CY2, C, LB, B, PU]
+
+# TREX properly fixed with no gaps between letters
+TREX_ART = [
+    r" ____________________________",
+    r"  /_  __// __ \ / ____/| |/ /",
+    r"   / /  / /_/ // __/   |   / ",
+    r"  / /  / _, _// /___  /   |  ",
+    r" /_/  /_/|_| /_____/ /_/|_|  "
+]
+TREX_COLORS = [Y, Y, O, O, R]
+
+def _art_print(animated=False):
+    """Prints DEV and TREX merged perfectly onto the SAME line."""
+    for i in range(5):
+        dc = BLD + DEV_COLORS[i]
+        tc = BLD + TREX_COLORS[i]
+        # Force them side-by-side with minimal spacing for perfect fit
+        line = f"  {dc}{DEV_ART[i]}{RST} {tc}{TREX_ART[i]}{RST}"
+        
+        if animated:
+            sys.stdout.write(line + chr(10))
+            sys.stdout.flush()
+            time.sleep(0.04)
+        else:
+            print(line)
+
+# ================================================================
+#  STARTUP ANIMATION  — Typewriter, fast, no progress bar
+# ================================================================
+def startup_animation():
+    clr()
+    print()
+
+    # Art appears line by line (animated=True)
+    _art_print(animated=True)
+    print()
+
+    # Separator line types out
+    sep_line = "  " + chr(9135)*36
+    sys.stdout.write(M + sep_line + RST + chr(10))
+    sys.stdout.flush()
+    time.sleep(0.05)
+
+    # Tool info typewriter (fast)
+    info_lines = [
+        f"  {BLD}{W}  ULTRA SCANNER {TOOL_VER}{RST}  {DIM}·  Bug Host Tool{RST}",
+        f"  {DIM}  Device: {TIER}  |  Threads: {DEFAULT_THREADS}  |  T/O: {TIMEOUT}s{RST}",
+    ]
+    for line in info_lines:
+        # Print char by char but very fast
+        visible = re.sub(r"\033\[[0-9;]*m", "", line)
+        sys.stdout.write(line + chr(10))
+        sys.stdout.flush()
+        time.sleep(0.05)
+
+    sys.stdout.write(M + sep_line + RST + chr(10))
+    sys.stdout.flush()
+    time.sleep(0.3)
+    clr()
+
+# ================================================================
+#  BANNER  (compact — shown on every menu/feature screen)
 # ================================================================
 def banner():
     online = is_online()
-    tc = G if TIER == "HIGH" else Y if TIER == "MID" else R
+    tc = G if TIER=="HIGH" else Y if TIER=="MID" else R
     nc = G if online else R
-    ns = "ONLINE  ✔" if online else "OFFLINE ✘"
-    print(f"""{RST}
-{M}╔══════════════════════════════════════════════════╗{RST}
-{M}║{RST}                                                  {M}║{RST}
-{M}║{RST}  {BLD}{CY2}██████╗  ███████╗██╗   ██╗{RST}                  {M}║{RST}
-{M}║{RST}  {BLD}{C}██╔══██╗ ██╔════╝██║   ██║{RST}                  {M}║{RST}
-{M}║{RST}  {BLD}{LB}██║  ██║ █████╗  ██║   ██║{RST}                  {M}║{RST}
-{M}║{RST}  {BLD}{B}██║  ██║ ██╔══╝  ╚██╗ ██╔╝{RST}                  {M}║{RST}
-{M}║{RST}  {BLD}{PU}██████╔╝ ███████╗ ╚████╔╝{RST}                   {M}║{RST}
-{M}║{RST}  {BLD}{PU}╚═════╝  ╚══════╝  ╚═══╝{RST}                   {M}║{RST}
-{M}║{RST}                                                  {M}║{RST}
-{M}║{RST}  {BLD}{Y}████████╗ ██████╗ ███████╗██╗  ██╗{RST}           {M}║{RST}
-{M}║{RST}  {BLD}{Y}╚══██╔══╝ ██╔══██╗██╔════╝╚██╗██╔╝{RST}           {M}║{RST}
-{M}║{RST}  {BLD}{O}   ██║    ██████╔╝█████╗   ╚███╔╝{RST}            {M}║{RST}
-{M}║{RST}  {BLD}{O}   ██║    ██╔══██╗██╔══╝   ██╔██╗{RST}            {M}║{RST}
-{M}║{RST}  {BLD}{R}   ██║    ██║  ██║███████╗██╔╝ ██╗{RST}           {M}║{RST}
-{M}║{RST}  {BLD}{R}   ╚═╝    ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝{RST}          {M}║{RST}
-{M}║{RST}                                                  {M}║{RST}
-{M}║{RST}  {BLD}{W}—͟͞⛦⃕͜᪾𝐃𝐄𝐕࿐{RST}  {M}✦{RST}  {BLD}{Y}T-REX{RST}  {DIM}· ULTRA SCANNER {TOOL_VER}{RST}   {M}║{RST}
-{M}╠══════════════════════════════════════════════════╣{RST}
-{M}║{RST}  {tc}● {TIER}{RST}  {DIM}│{RST}  {nc}● {ns}{RST}  {DIM}│ T:{DEFAULT_THREADS} │ T/O:{TIMEOUT}s{RST}            {M}║{RST}
-{M}╚══════════════════════════════════════════════════╝{RST}""")
+    ns = "ONLINE  " + chr(10004) if online else "OFFLINE " + chr(10008)
+
+    print(RST)
+    print_banner_art(animated=False)
+
+    _btop(M)
+    _brow(f" {DIM}ULTRA SCANNER {TOOL_VER}  \u00b7  Bug Host Tool{RST}", M)
+    _bmid(M)
+    _brow(f" {tc}\u25cf {TIER}{RST}  {DIM}|{RST}  {nc}\u25cf {ns}{RST}  {DIM}| T:{DEFAULT_THREADS} | {TIMEOUT}s{RST}", M)
+    _bbot(M)
+
+# ================================================================
+#  BANNER  — compact, always readable, italic+side-by-side
+# ================================================================
+def banner():
+    online = is_online()
+    tc = G if TIER=="HIGH" else Y if TIER=="MID" else R
+    nc = G if online else R
+    ns = "ONLINE  " + chr(10004) if online else "OFFLINE " + chr(10008)
+
+    print(RST)
+    _art_print(animated=False)
+    print()
+
+    _btop(M)
+    _brow(f" {DIM}ULTRA SCANNER {TOOL_VER}  ·  Bug Host Tool{RST}", M)
+    _bmid(M)
+    _brow(f" {tc}● {TIER}{RST}  {DIM}|{RST}  {nc}● {ns}{RST}  {DIM}| T:{DEFAULT_THREADS} | {TIMEOUT}s{RST}", M)
+    _bbot(M)
 
 # ================================================================
 #  MENU
@@ -509,25 +598,27 @@ def banner():
 def menu():
     clr()
     banner()
-    print(f"""
-{M}╔══════════════════════════════════════════════════╗{RST}
-{M}║{RST}    {BLD}{W}◆  FEATURES  ◆{RST}                              {M}║{RST}
-{M}╠══════════════════════════════════════════════════╣{RST}
-{M}║{RST}  {G}[ 1]{RST} 🌐  Domain Scanner      {DIM}│ Net          {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 2]{RST} ⚡  TCP Port Scanner    {DIM}│ Local/Net    {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 3]{RST} 🔍  HTTP Info           {DIM}│ Net          {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 4]{RST} 🔒  SNI Scanner         {Y}│ Offline ✔    {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 5]{RST} 🔎  Subdomain Finder    {DIM}│ Net          {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 6]{RST} 📄  Extract Domains     {Y}│ Offline ✔    {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 7]{RST} 💾  Export JSON         {Y}│ Offline ✔    {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 8]{RST} 🖥   IP Calculator       {Y}│ Offline ✔    {RST}  {M}║{RST}
-{M}║{RST}  {G}[ 9]{RST} 📡  Network Scan        {Y}│ WiFi ✔       {RST}  {M}║{RST}
-{M}║{RST}  {G}[10]{RST} 📱  Device Info         {Y}│ Offline ✔    {RST}  {M}║{RST}
-{M}╠══════════════════════════════════════════════════╣{RST}
-{M}║{RST}  {C}[ U]{RST} 🔄  Update Tool         {DIM}│ Net          {RST}  {M}║{RST}
-{M}║{RST}  {R}[ 0]{RST} ✖   Exit                                   {M}║{RST}
-{M}╚══════════════════════════════════════════════════╝{RST}""")
-    return input(f"\n  {W}◈  Select: {RST}").strip().lower()
+    print()
+    _btop(M)
+    _brow(f"  {BLD}{W}" + chr(9670) + "  FEATURES  " + chr(9670) + f"{RST}", M)
+    _bmid(M)
+    _brow(f"  {G}[ 1]{RST}  Domain Scanner    {DIM}| Net{RST}", M)
+    _brow(f"  {G}[ 2]{RST}  TCP Port Scanner  {DIM}| Local/Net{RST}", M)
+    _brow(f"  {G}[ 3]{RST}  HTTP Info         {DIM}| Net{RST}", M)
+    _brow(f"  {G}[ 4]{RST}  SNI Scanner       {Y}| Offline " + chr(10004) + f"{RST}", M)
+    _brow(f"  {G}[ 5]{RST}  Subdomain Finder  {DIM}| Net{RST}", M)
+    _brow(f"  {G}[ 6]{RST}  Extract Domains   {Y}| Offline " + chr(10004) + f"{RST}", M)
+    _brow(f"  {G}[ 7]{RST}  Export JSON       {Y}| Offline " + chr(10004) + f"{RST}", M)
+    _brow(f"  {G}[ 8]{RST}  IP Calculator     {Y}| Offline " + chr(10004) + f"{RST}", M)
+    _brow(f"  {G}[ 9]{RST}  Network Scan      {Y}| WiFi " + chr(10004) + f"{RST}", M)
+    _brow(f"  {G}[10]{RST}  Device Info       {Y}| Offline " + chr(10004) + f"{RST}", M)
+    _bmid(M)
+    _brow(f"  {G}[11]{RST}  Tunable Checker   {DIM}| Net{RST}", M)
+    _bmid(M)
+    _brow(f"  {C}[ U]{RST}  Update Tool       {DIM}| Net{RST}", M)
+    _brow(f"  {R}[ 0]{RST}  Exit", M)
+    _bbot(M)
+    return input(f"\n  {W}> Select: {RST}").strip().lower()
 
 # ================================================================
 #  UPDATE TOOL
@@ -950,117 +1041,416 @@ def sni_scanner():
     sep(C); pause()
 
 # ================================================================
-#  5. SUBDOMAIN FINDER  ── Auto threads, no selection
 # ================================================================
-WORDLIST = [
-    "www","mail","ftp","smtp","pop","imap","webmail","cpanel","admin","api",
-    "app","dev","test","staging","beta","demo","cdn","static","assets","media",
-    "img","images","blog","shop","store","portal","dashboard","panel","auth",
-    "login","register","account","user","users","support","help","docs","wiki",
-    "status","monitor","metrics","vpn","remote","ssh","files","download","upload",
-    "storage","backup","db","database","mysql","mongo","redis","search","cache",
-    "proxy","gateway","ns1","ns2","mx","mx1","mx2","smtp1","smtp2","autodiscover",
-    "autoconfig","calendar","video","stream","live","news","feed","rss","security",
-    "ssl","owa","exchange","cloud","internal","intranet","corp","office","aws",
-    "azure","k8s","docker","ci","cd","build","deploy","staging2","uat","qa",
-    "pre","prod","sandbox","lab","data","analytics","report","stats","log","audit",
-    "legal","careers","partner","client","customer","service","server","node","lb",
-    "ha","dr","archive","old","legacy","v1","v2","v3","new","next","alpha","preview",
-    "edge","origin","primary","secondary","master","read","write","public","private",
-    "secure","sso","oauth","ldap","dns","ntp","vault","manager","management",
-    "control","admin2","root","sys","network","relay","mta","spam","filter",
-    "waf","api2","api3","rest","graphql","ws","mobile","m","pwa","amp",
-    "tracking","iot","device","health","ping","uptime","forum","community",
-    "feedback","forms","crm","billing","payment","checkout","order","mail2","mail3",
+#  5. SUBDOMAIN FINDER  — NEXA-style Fast Queue + Passive APIs
+#  No wordlist — Pure passive API discovery + fast DNS verify
+# ================================================================
+import urllib.request as _ur
+from queue import Queue as _Queue
+
+def _api_get(url, timeout=8):
+    """Simple HTTP GET for passive API queries"""
+    try:
+        req = _ur.Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json, text/html, */*"
+        })
+        return _ur.urlopen(req, timeout=timeout).read().decode("utf-8", errors="ignore")
+    except:
+        return None
+
+def _sub_clean(d, base):
+    """Validate and clean a subdomain"""
+    d = re.sub(r"^\*\.", "", d.strip().lower())
+    d = re.sub(r"https?://", "", d).split("/")[0].split(":")[0]
+    if not d: return None
+    if not (d.endswith(f".{base}") or d == base): return None
+    if not re.match(r"^[a-z0-9.\-]+$", d): return None
+    return d
+
+# ── Passive API Sources ─────────────────────────────────────────
+def _api_crt(domain):
+    s = set()
+    raw = _api_get(f"https://crt.sh/?q=%.{domain}&output=json", 12)
+    if raw:
+        try:
+            for e in json.loads(raw):
+                for n in e.get("name_value","").split("\n"):
+                    c = _sub_clean(n, domain)
+                    if c: s.add(c)
+        except: pass
+    return s
+
+def _api_hackertarget(domain):
+    s = set()
+    raw = _api_get(f"https://api.hackertarget.com/hostsearch/?q={domain}", 8)
+    if raw and "error" not in raw.lower() and "API" not in raw:
+        for line in raw.splitlines():
+            p = line.split(",")
+            if p:
+                c = _sub_clean(p[0], domain)
+                if c: s.add(c)
+    return s
+
+def _api_alienvault(domain):
+    s = set()
+    raw = _api_get(
+        f"https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns", 8)
+    if raw:
+        try:
+            for e in json.loads(raw).get("passive_dns", []):
+                c = _sub_clean(e.get("hostname",""), domain)
+                if c: s.add(c)
+        except: pass
+    return s
+
+def _api_rapiddns(domain):
+    s = set()
+    raw = _api_get(f"https://rapiddns.io/subdomain/{domain}?full=1&down=1", 8)
+    if raw:
+        for m in re.findall(r"([a-zA-Z0-9\-.]+\." + re.escape(domain) + r")", raw):
+            c = _sub_clean(m, domain)
+            if c: s.add(c)
+    return s
+
+def _api_bufferover(domain):
+    s = set()
+    raw = _api_get(f"https://dns.bufferover.run/dns?q=.{domain}", 6)
+    if raw:
+        try:
+            data = json.loads(raw)
+            for e in data.get("FDNS_A", []) + data.get("RDNS", []):
+                for p in e.split(","):
+                    c = _sub_clean(p, domain)
+                    if c: s.add(c)
+        except: pass
+    return s
+
+def _api_urlscan(domain):
+    s = set()
+    raw = _api_get(
+        f"https://urlscan.io/api/v1/search/?q=domain:{domain}&size=200", 8)
+    if raw:
+        try:
+            for r in json.loads(raw).get("results", []):
+                pg = r.get("page", {})
+                for k in ["domain", "ptr"]:
+                    c = _sub_clean(pg.get(k, ""), domain)
+                    if c: s.add(c)
+        except: pass
+    return s
+
+# ── Additional API Sources ─────────────────────────────────────
+def _api_threatcrowd(domain):
+    s = set()
+    raw = _api_get(f"https://www.threatcrowd.org/searchApi/v2/domain/report/?domain={domain}", 8)
+    if raw:
+        try:
+            data = json.loads(raw)
+            for sub in data.get("subdomains", []):
+                c = _sub_clean(sub, domain)
+                if c: s.add(c)
+        except: pass
+    return s
+
+def _api_certspotter(domain):
+    s = set()
+    raw = _api_get(
+        f"https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names", 8)
+    if raw:
+        try:
+            for entry in json.loads(raw):
+                for name in entry.get("dns_names", []):
+                    c = _sub_clean(name, domain)
+                    if c: s.add(c)
+        except: pass
+    return s
+
+def _api_anubis(domain):
+    s = set()
+    raw = _api_get(f"https://jldc.me/anubis/subdomains/{domain}", 8)
+    if raw:
+        try:
+            for sub in json.loads(raw):
+                c = _sub_clean(sub, domain)
+                if c: s.add(c)
+        except: pass
+    return s
+
+def _api_webarchive(domain):
+    s = set()
+    raw = _api_get(
+        f"http://web.archive.org/cdx/search/cdx?url=*.{domain}&output=json&fl=original&collapse=urlkey&limit=500", 10)
+    if raw:
+        try:
+            for row in json.loads(raw)[1:]:  # skip header
+                url = row[0] if row else ""
+                m = re.match(r"https?://([^/]+)", url)
+                if m:
+                    c = _sub_clean(m.group(1), domain)
+                    if c: s.add(c)
+        except: pass
+    return s
+
+def _api_riddler(domain):
+    s = set()
+    raw = _api_get(f"https://riddler.io/search/exportcsv?q=pld:{domain}", 8)
+    if raw:
+        for line in raw.splitlines():
+            parts = line.split(",")
+            if len(parts) >= 5:
+                c = _sub_clean(parts[4], domain)
+                if c: s.add(c)
+    return s
+
+def _api_c99(domain):
+    s = set()
+    raw = _api_get(f"https://subdomainfinder.c99.nl/scans/{domain}", 8)
+    if raw:
+        for m in re.findall(r"([a-zA-Z0-9.-]+" + re.escape("." + domain) + r")", raw):
+            c = _sub_clean(m, domain)
+            if c: s.add(c)
+    return s
+
+# ── Extra API Sources ───────────────────────────────────────────
+def _api_threatminer(domain):
+    s = set()
+    raw = _api_get(f"https://api.threatminer.org/v2/domain.php?q={domain}&rt=5", 8)
+    if raw:
+        try:
+            for sub in json.loads(raw).get("results", []):
+                c = _sub_clean(sub, domain)
+                if c: s.add(c)
+        except: pass
+    return s
+
+def _api_omnisint(domain):
+    s = set()
+    raw = _api_get(f"https://sonar.omnisint.io/subdomains/{domain}", 8)
+    if raw:
+        try:
+            for sub in json.loads(raw):
+                c = _sub_clean(sub, domain)
+                if c: s.add(c)
+        except: pass
+    return s
+
+def _api_virustotal(domain):
+    s = set()
+    raw = _api_get(
+        f"https://www.virustotal.com/ui/domains/{domain}/subdomains?limit=40", 6)
+    if raw:
+        try:
+            data = json.loads(raw)
+            for item in data.get("data", []):
+                c = _sub_clean(item.get("id",""), domain)
+                if c: s.add(c)
+        except: pass
+    return s
+
+def _api_dnsdumpster(domain):
+    """DNSdumpster via hackertarget endpoint (no CSRF needed)"""
+    s = set()
+    raw = _api_get(f"https://api.hackertarget.com/dnslookup/?q={domain}", 8)
+    if raw and "error" not in raw.lower():
+        for m in re.findall(r"([a-zA-Z0-9.-]+" + re.escape("." + domain) + r")", raw):
+            c = _sub_clean(m, domain)
+            if c: s.add(c)
+    return s
+
+def _api_securitytrails_free(domain):
+    """SecurityTrails free HTML scrape"""
+    s = set()
+    raw = _api_get(f"https://securitytrails.com/list/apex_domain/{domain}", 6)
+    if raw:
+        for m in re.findall(r"([a-zA-Z0-9.-]+" + re.escape("." + domain) + r")", raw):
+            c = _sub_clean(m, domain)
+            if c: s.add(c)
+    return s
+
+API_SOURCES = [
+    ("crt.sh",        _api_crt),
+    ("HackerTarget",  _api_hackertarget),
+    ("AlienVault",    _api_alienvault),
+    ("RapidDNS",      _api_rapiddns),
+    ("BufferOver",    _api_bufferover),
+    ("URLScan",       _api_urlscan),
+    ("ThreatCrowd",   _api_threatcrowd),
+    ("CertSpotter",   _api_certspotter),
+    ("Anubis",        _api_anubis),
+    ("WebArchive",    _api_webarchive),
+    ("Riddler",       _api_riddler),
+    ("C99",           _api_c99),
+    ("ThreatMiner",   _api_threatminer),
+    ("Omnisint",      _api_omnisint),
+    ("VirusTotal",    _api_virustotal),
+    ("DNSDumpster",   _api_dnsdumpster),
+    ("SecurityTrails",_api_securitytrails_free),
 ]
 
 def subdomain_finder():
     clr(); banner()
     feature_header("🔎", "SUBDOMAIN FINDER",
-                   "Net required · Auto threads",
+                   "Passive APIs + Fast Queue DNS verify · No wordlist",
                    OTHER_FEATURES)
 
     if not is_online():
-        print(f"  {R}✘  No internet!{RST}")
-        print(f"  {Y}   SNI Scanner try karo → [4]{RST}")
+        print(f"  {R}✘  No internet connection!{RST}")
         return pause()
 
     print(f"  {DIM}  Ctrl+C anytime to stop{RST}")
     in_path = ask_file_path("Domains file", ".txt")
     if not in_path: return
     if not os.path.exists(in_path):
-        print(f"\n  {R}✘  File nahi mili: {in_path}{RST}"); return pause()
+        print(f"  {R}✘  File not found: {in_path}{RST}"); return pause()
 
-    with open(in_path,"r",errors="ignore") as f:
+    with open(in_path, "r", errors="ignore") as f:
         base_domains = list(dict.fromkeys([
             re.sub(r"https?://","",l.strip()).split("/")[0].strip()
             for l in f if l.strip() and not l.startswith("#") and "." in l
         ]))
 
     if not base_domains:
-        print(f"\n  {R}✘  No valid domains found.{RST}"); return pause()
+        print(f"  {R}✘  No valid domains found.{RST}"); return pause()
 
     folder   = os.path.dirname(in_path)
     base_n   = os.path.splitext(os.path.basename(in_path))[0]
     out_path = os.path.join(folder, f"{base_n}_subdomains.txt")
 
-    # Auto threads — no manual selection
-    threads = DEFAULT_THREADS
-    total   = len(base_domains) * len(WORDLIST)
+    print(f"\n  {G}✔{RST}  Domains   {DIM}│{RST}  {W}{len(base_domains)}{RST}")
+    print(f"  {G}✔{RST}  APIs      {DIM}│{RST}  {W}{len(API_SOURCES)} sources{RST}")
+    print(f"  {G}✔{RST}  Output    {DIM}│{RST}  {W}{out_path}{RST}")
+    print(f"  {DIM}  Sources: {", ".join(s[0] for s in API_SOURCES)}{RST}\n")
+    sep(C)
 
-    print(f"  {G}✔{RST}  Base domains  {DIM}│{RST}  {len(base_domains)}")
-    print(f"  {G}✔{RST}  Wordlist      {DIM}│{RST}  {len(WORDLIST)}")
-    print(f"  {G}✔{RST}  Total checks  {DIM}│{RST}  {total}")
-    print(f"  {G}✔{RST}  Threads       {DIM}│{RST}  {threads} (auto)")
-    print(f"  {G}✔{RST}  Output        {DIM}│{RST}  {out_path}\n")
+    out_f = open(out_path, "w", buffering=1, encoding="utf-8")
+    out_f.write(f"# DEV & T-REX — Subdomain Discovery\n")
+    out_f.write(f"# Source: {in_path} | Date: {datetime.now()}\n\n")
 
-    found = []
-    done  = 0
-    lock  = threading.Lock()
-    stop  = threading.Event()
+    all_found   = set()
+    total_saved = 0
+    file_lock   = threading.Lock()
+    stop        = threading.Event()
 
-    out_f = open(out_path,"w",buffering=1,encoding="utf-8")
-    out_f.write(f"# —͟͞⛦⃕͜᪾ 𝐃𝐄𝐕࿐ & T-REX — Subdomains\n")
-    out_f.write(f"# Source: {in_path}\n# Date: {datetime.now()}\n\n")
-
-    draw_progress(0, total, 0)
-
-    def check(base, prefix):
-        nonlocal done
-        if stop.is_set(): return
-        sub = f"{prefix}.{base}"
-        try:
-            socket.setdefaulttimeout(TIMEOUT)
-            ip = socket.gethostbyname(sub)
-            with lock:
-                done += 1
-                found.append(sub)
-                print_result_line(f"  {G}✔{RST}  {sub:<45}  {DIM}{ip}{RST}")
+    def save_sub(sub):
+        nonlocal total_saved
+        with file_lock:
+            if sub not in all_found:
+                all_found.add(sub)
+                total_saved += 1
                 out_f.write(sub + "\n")
                 out_f.flush()
-                draw_progress(done, total, len(found))
-        except:
-            with lock:
-                done += 1
-                if done % 30 == 0:
-                    draw_progress(done, total, len(found))
+                return True
+        return False
+
+    # NEXA-style Queue worker for fast DNS verification
+    def dns_worker(q_in, domain, results):
+        while True:
+            sub = q_in.get()
+            if sub is None:
+                q_in.task_done()
+                break
+            try:
+                socket.setdefaulttimeout(2.0)
+                socket.gethostbyname(sub)
+                results.append(sub)
+            except:
+                pass
+            q_in.task_done()
+
+    def process_domain(base):
+        if stop.is_set(): return 0
+
+        # Phase 1: Query ALL passive APIs concurrently
+        collected = {base}
+        with ThreadPoolExecutor(max_workers=len(API_SOURCES)) as ex:
+            futures = {ex.submit(fn, base): nm for nm, fn in API_SOURCES}
+            for fut in as_completed(futures):
+                try:
+                    collected.update(fut.result() or set())
+                except: pass
+
+        # Phase 2: NEXA-style Queue + 100 threads DNS verify (FAST)
+        to_check = [s for s in collected if s not in all_found]
+        verified = []
+
+        if to_check:
+            q    = _Queue()
+            n_threads = min(150, max(50, len(to_check)))
+            workers  = []
+
+            for _ in range(n_threads):
+                t = threading.Thread(
+                    target=dns_worker,
+                    args=(q, base, verified),
+                    daemon=True
+                )
+                t.start()
+                workers.append(t)
+
+            for sub in to_check:
+                if stop.is_set(): break
+                q.put(sub)
+
+            for _ in range(n_threads):
+                q.put(None)
+
+            q.join()
+            for t in workers:
+                t.join()
+
+        # Always include base domain
+        if base not in all_found:
+            verified.append(base)
+
+        # Phase 3: Save results
+        new_count = 0
+        for sub in sorted(verified):
+            if save_sub(sub):
+                new_count += 1
+
+        return new_count, verified
+
+    # Process all domains — 2 concurrently to respect API rate limits
+    done_d = 0
+    total_d = len(base_domains)
 
     try:
-        with ThreadPoolExecutor(max_workers=threads) as ex:
-            futures = [ex.submit(check,b,p) for b in base_domains for p in WORDLIST]
-            for f in as_completed(futures): pass
+        with ThreadPoolExecutor(max_workers=2) as dom_ex:
+            fut_map = {dom_ex.submit(process_domain, b): b for b in base_domains}
+
+            for fut in as_completed(fut_map):
+                if stop.is_set(): break
+                base = fut_map[fut]
+                done_d += 1
+                try:
+                    n, subs = fut.result()
+                    # Print found subdomains
+                    for sub in sorted(subs):
+                        if sub != base:
+                            print(f"  {G}✔{RST}  {sub}")
+                    print(f"  {C}►{RST}  {base:<35} "
+                          f"{G}{n} found{RST}  "
+                          f"{DIM}[{done_d}/{total_d}] total:{total_saved}{RST}")
+                except KeyboardInterrupt:
+                    stop.set(); break
+                except Exception as e:
+                    print(f"  {R}✘{RST}  {base}  error: {e}")
+
     except KeyboardInterrupt:
         stop.set()
-        draw_progress(done, total, len(found), stopped=True)
 
-    out_f.write(f"\n# Total: {len(found)}\n")
+    out_f.write(f"\n# Total: {total_saved} | Done: {datetime.now()}\n")
     out_f.close()
 
     print(); sep(C)
-    print(f"\n  {G}✔{RST}  Found   {DIM}│{RST}  {len(found)} subdomains")
-    print(f"  {G}✔{RST}  Saved   {DIM}│{RST}  {out_path}")
-    print(f"\n  {Y}◈  Ab SNI Scanner chalao → [4]{RST}")
+    st = f"{R}STOPPED{RST}" if stop.is_set() else f"{GR2}COMPLETE{RST}"
+    print(f"\n  Status   {DIM}│{RST}  {st}")
+    print(f"  {G}✔{RST}  Found    {DIM}│{RST}  {total_saved} unique subdomains")
+    print(f"  {G}✔{RST}  Output   {DIM}│{RST}  {out_path}")
+    print(f"\n  {Y}  Next → SNI Scanner [4]{RST}")
     sep(C); pause()
+
 
 # ================================================================
 #  6. EXTRACT DOMAINS
@@ -1264,31 +1654,319 @@ def device_info():
     sep(C); pause()
 
 # ================================================================
+#  11. TUNABLE CHECKER  (from NEXA)
+#  Checks if a domain/SNI is tunable for SSH tunneling
+# ================================================================
+
+NON_TUNABLE_IPS = ["23.", "49.", "184."]
+TUNABLE_SERVERS = [
+    "Cloudflare","CloudFront","Google","Fastly","Cachefly",
+    "Bunny","Tengine","Sucuri","Gcore","Imperva","Tencent"
+]
+
+def _tc_detect_server(domain, ip):
+    """
+    Detect CDN/server using 3 methods:
+    1. IP-range based detection (most reliable, works offline)
+    2. Raw TCP SNI connect → parse Server header
+    3. urllib HTTP request headers
+    Returns server name string.
+    """
+    # Method 1: IP-based detection (instant, always works)
+    ip_server = None
+    CF_RANGES = ["172.65","104.16","104.21","104.18","104.19","104.20",
+                 "103.21","103.22","141.101","108.162","190.93","188.114",
+                 "162.158","172.64","198.41","197.234","116.50","104.17",
+                 "103.31","141.101","188.114","190.93","197.234","198.41"]
+    AK_RANGES = ["49.44","49.40","49.45","23.32","23.64","23.72",
+                 "96.6","96.7","184.24","184.25","184.26","184.27",
+                 "2.16","23.0","23.192","23.193","23.194","23.195"]
+    for p in CF_RANGES:
+        if ip.startswith(p): ip_server = "Cloudflare"; break
+    if not ip_server:
+        for p in AK_RANGES:
+            if ip.startswith(p): ip_server = "Akamai"; break
+    if not ip_server:
+        if ip.startswith("35.190") or ip.startswith("142.250") or ip.startswith("74.125"):
+            ip_server = "Google"
+        elif ip.startswith("13.107") or ip.startswith("20."):
+            ip_server = "Microsoft"
+        elif ip.startswith("45.123") or ip.startswith("45.60"):
+            ip_server = "F5/BigIP"
+
+    # Method 2: Raw TCP SNI connect → get Server header
+    tcp_server = None
+    for port in [443, 80]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(5)
+            s.connect((ip, port))
+            if port == 443:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                ss = ctx.wrap_socket(s, server_hostname=domain)
+                req = (f"GET / HTTP/1.1\r\nHost: {domain}\r\n"
+                       f"User-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n")
+                ss.sendall(req.encode())
+                raw = b""
+                try:
+                    while len(raw) < 4096:
+                        chunk = ss.recv(1024)
+                        if not chunk: break
+                        raw += chunk
+                        if b"\r\n\r\n" in raw: break
+                except: pass
+                try: ss.close()
+                except: pass
+            else:
+                req = (f"GET / HTTP/1.1\r\nHost: {domain}\r\n"
+                       f"User-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n")
+                s.sendall(req.encode())
+                raw = b""
+                try:
+                    while len(raw) < 4096:
+                        chunk = s.recv(1024)
+                        if not chunk: break
+                        raw += chunk
+                        if b"\r\n\r\n" in raw: break
+                except: pass
+                try: s.close()
+                except: pass
+
+            text = raw.decode("utf-8", errors="ignore").lower()
+            # Check for CDN signatures in response
+            if "cf-ray" in text or "cf-cache-status" in text or "cloudflare" in text:
+                tcp_server = "Cloudflare"; break
+            if "x-amz-cf" in text or "cloudfront" in text:
+                tcp_server = "CloudFront"; break
+            sm = re.search(r"server:\s*([^\r\n]+)", text)
+            if sm:
+                sv = sm.group(1).strip()
+                if "google" in sv or "gfe" in sv: tcp_server = "Google"; break
+                if "fastly" in sv or "varnish" in sv: tcp_server = "Fastly"; break
+                if "tengine" in sv: tcp_server = "Tengine"; break
+                if "cloudflare" in sv: tcp_server = "Cloudflare"; break
+            if "x-fastly" in text or "fastly" in text: tcp_server = "Fastly"; break
+            if "x-gcore" in text or "gcdn" in text: tcp_server = "Gcore"; break
+            if "x-imperva" in text or "incapsula" in text: tcp_server = "Imperva"; break
+            if "x-sucuri" in text: tcp_server = "Sucuri"; break
+            if "x-bunny" in text or "bunnycdn" in text: tcp_server = "Bunny"; break
+        except:
+            continue
+
+    # Method 3: urllib request (catches redirects + more headers)
+    url_server = None
+    import urllib.request as _ur3
+    for scheme in ["https", "http"]:
+        try:
+            import ssl as _ssl3
+            ctx3 = _ssl3.create_default_context()
+            ctx3.check_hostname = False
+            ctx3.verify_mode = _ssl3.CERT_NONE
+            req = _ur3.Request(f"{scheme}://{domain}",
+                               headers={"User-Agent":"Mozilla/5.0"})
+            if scheme == "https":
+                resp = _ur3.urlopen(req, timeout=6, context=ctx3)
+            else:
+                resp = _ur3.urlopen(req, timeout=6)
+            hdrs = str({k.lower(): v.lower() for k, v in resp.headers.items()})
+            if "cf-ray" in hdrs or "cloudflare" in hdrs: url_server = "Cloudflare"; break
+            if "x-amz-cf" in hdrs or "cloudfront" in hdrs: url_server = "CloudFront"; break
+            if "x-fastly" in hdrs or "fastly" in hdrs: url_server = "Fastly"; break
+            if "x-gcore" in hdrs: url_server = "Gcore"; break
+            if "x-imperva" in hdrs or "incapsula" in hdrs: url_server = "Imperva"; break
+            if "x-sucuri" in hdrs: url_server = "Sucuri"; break
+            if "x-bunny" in hdrs or "bunnycdn" in hdrs: url_server = "Bunny"; break
+            if "tengine" in hdrs or "alibaba" in hdrs: url_server = "Tengine"; break
+            if "tencent-cdn" in hdrs: url_server = "Tencent"; break
+        except:
+            continue
+
+    # Priority: tcp_server > url_server > ip_server > Unknown
+    # TCP and URL are more accurate (actual response headers)
+    final = tcp_server or url_server or ip_server or "Unknown"
+    return final, ip_server, tcp_server, url_server
+
+def _tc_is_tunable(ip, server):
+    """
+    TUNABLE if:
+    1. Server is in TUNABLE_SERVERS list
+    2. IP does NOT start with 23., 49., or 184.
+    Both must be true.
+    """
+    matched = None
+    for ts in TUNABLE_SERVERS:
+        if ts.lower() in server.lower():
+            matched = ts
+            break
+
+    if not matched:
+        return False, f"Server '{server}' not in tunable CDN list", None
+
+    for pfx in NON_TUNABLE_IPS:
+        if ip.startswith(pfx):
+            return False, f"IP {ip} is in non-tunable range ({pfx}*) — Akamai/non-tunable network", matched
+
+    return True, f"{matched} CDN + IP {ip} is in tunable range", matched
+
+def _tc_check_port(host, port):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(3)
+        r = s.connect_ex((host, port))
+        s.close()
+        return r == 0
+    except:
+        return False
+
+def _tc_payload(domain, server):
+    cf_payload = f"""CONNECT {domain}:443 HTTP/1.1
+Host: {domain}
+User-Agent: Mozilla/5.0
+CF-Connecting-IP: 127.0.0.1
+CF-IPCountry: US
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13"""
+
+    generic = f"""CONNECT {domain}:443 HTTP/1.1
+Host: {domain}
+User-Agent: Mozilla/5.0
+X-Forwarded-For: 127.0.0.1
+Connection: keep-alive
+
+# WebSocket:
+GET / HTTP/1.1
+Host: {domain}
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13"""
+
+    if "cloudflare" in server.lower():
+        return cf_payload
+    return generic
+
+def tunable_checker():
+    clr(); banner()
+    feature_header("⚡", "TUNABLE CHECKER",
+                   "Check if SNI/domain is tunable for SSH tunneling",
+                   OTHER_FEATURES)
+
+    if not is_online():
+        print(f"  {R}✘  No internet connection!{RST}")
+        return pause()
+
+    domain = input(f"  {W}Enter domain/SNI: {RST}").strip()
+    if not domain:
+        print(f"  {R}✘  No domain provided!{RST}")
+        return pause()
+
+    print(f"\n  {Y}Analyzing: {domain}{RST}\n")
+    sep(C)
+
+    # Step 1: Resolve IP
+    sys.stdout.write(f"  {DIM}[ 1/4 ] Resolving IP...{RST}\r")
+    sys.stdout.flush()
+    try:
+        ip = socket.gethostbyname(domain)
+        print(f"  {G}✔{RST}  IP Address    {DIM}│{RST}  {W}{ip}{RST}         ")
+    except:
+        print(f"  {R}✘  Could not resolve domain!{RST}")
+        return pause()
+
+    # Step 2: Detect server (3 methods)
+    sys.stdout.write(f"  {DIM}[ 2/4 ] Detecting CDN/Server (3 methods)...{RST}\r")
+    sys.stdout.flush()
+    server, ip_det, tcp_det, url_det = _tc_detect_server(domain, ip)
+    print(f"  {G}✔{RST}  Server        {DIM}│{RST}  {C}{server}{RST}         ")
+    print(f"  {DIM}    IP-based  : {ip_det or 'N/A'}{RST}")
+    print(f"  {DIM}    TCP/SNI   : {tcp_det or 'N/A'}{RST}")
+    print(f"  {DIM}    HTTP hdr  : {url_det or 'N/A'}{RST}")
+
+    # Step 3: Check ports
+    sys.stdout.write(f"  {DIM}[ 3/4 ] Checking ports...{RST}\r")
+    sys.stdout.flush()
+    p443  = _tc_check_port(ip, 443)
+    p8080 = _tc_check_port(ip, 8080)
+    pstr443  = f"{G}✔ OPEN{RST}" if p443  else f"{R}✘ CLOSED{RST}"
+    pstr8080 = f"{G}✔ OPEN{RST}" if p8080 else f"{R}✘ CLOSED{RST}"
+    print(f"  {G}✔{RST}  Port 443      {DIM}│{RST}  {pstr443}")
+    print(f"  {G}✔{RST}  Port 8080     {DIM}│{RST}  {pstr8080}")
+
+    # Step 4: Tunable verdict
+    sys.stdout.write(f"  {DIM}[ 4/4 ] Checking tunability...{RST}\r")
+    sys.stdout.flush()
+    tunable, reason, matched = _tc_is_tunable(ip, server)
+    sep(C)
+
+    if tunable:
+        print(f"\n  {GR2}{BLD}╔══════════════════════════════════╗{RST}")
+        print(f"  {GR2}{BLD}║   ✔   STATUS : TUNABLE   ✔       ║{RST}")
+        print(f"  {GR2}{BLD}╚══════════════════════════════════╝{RST}")
+        print(f"\n  {G}✔{RST}  {reason}")
+    else:
+        print(f"\n  {R}{BLD}╔══════════════════════════════════╗{RST}")
+        print(f"  {R}{BLD}║   ✘  STATUS : NON-TUNABLE  ✘     ║{RST}")
+        print(f"  {R}{BLD}╚══════════════════════════════════╝{RST}")
+        print(f"\n  {R}✘{RST}  {reason}")
+
+    # Step 5: Payload if tunable
+    if tunable:
+        print(f"\n  {Y}{BLD}━━ SSH PAYLOAD ━━{RST}")
+        sep(Y)
+        for line in _tc_payload(domain, matched).split("\n"):
+            print(f"  {C}{line}{RST}")
+        sep(Y)
+        print(f"\n  {W}Ports to try:{RST} 443, 8080, 2053, 2083, 2087, 2096")
+        print(f"  {DIM}curl -x http://{domain}:443 https://api.ipify.org{RST}")
+
+    # Save result
+    try:
+        dl = os.path.expanduser("~/storage/downloads")
+        folder = dl if os.path.isdir(dl) else os.path.expanduser("~")
+        out_path = os.path.join(folder, "tunable_results.txt")
+        with open(out_path, "a") as f:
+            f.write(f"{domain} | {ip} | {server} | "
+                    f"{'TUNABLE' if tunable else 'NON-TUNABLE'} | {reason}\n")
+        print(f"\n  {G}✔{RST}  Saved → {out_path}")
+    except: pass
+
+    sep(C); pause()
+
+# ================================================================
 #  MAIN
 # ================================================================
 ACTIONS = {
     "1":domain_scanner,"2":port_scanner,"3":http_info,
     "4":sni_scanner,"5":subdomain_finder,"6":extract_domains,
     "7":export_json,"8":ip_calculator,"9":local_network_scan,
-    "10":device_info,"u":update_tool,
+    "10":device_info,"11":tunable_checker,"u":update_tool,
 }
 
 def main():
+    startup_animation()   # ParaFast-style intro — runs only once at launch
     while True:
         try:
             ch = menu()
             if ch == "0":
                 clr()
-                print(f"""
-{M}╔══════════════════════════════════════════════════╗
-║                                                  ║
-║    —͟͞⛦⃕͜᪾  𝐃𝐄𝐕࿐   ✦   T-REX                  ║
-║                                                  ║
-║         Thanks for using our tool!               ║
-║             See you next time  👋                ║
-║                                                  ║
-╚══════════════════════════════════════════════════╝{RST}
-""")
+                clr()
+                print()
+                for i,ln in enumerate(DEV_ART):
+                    print(f"  {BLD}{DEV_COLORS[i]}{ln}{RST}")
+                print()
+                for i,ln in enumerate(TREX_ART):
+                    print(f"  {BLD}{TREX_COLORS[i]}{ln}{RST}")
+                print()
+                msg = "  Thanks for using our tool!  See you next time!"
+                sys.stdout.write(f"  {DIM}")
+                for ch2 in msg:
+                    sys.stdout.write(ch2); sys.stdout.flush(); time.sleep(0.02)
+                sys.stdout.write(RST+"\n\n")
+                time.sleep(0.3)
                 break
             elif ch in ACTIONS:
                 try:
